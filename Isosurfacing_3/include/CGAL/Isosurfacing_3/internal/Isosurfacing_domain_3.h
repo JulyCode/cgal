@@ -16,6 +16,8 @@
 
 #include <CGAL/Isosurfacing_3/internal/Cell_type.h>
 
+#include <CGAL/tags.h>
+
 namespace CGAL {
 namespace Isosurfacing {
 namespace internal {
@@ -124,21 +126,21 @@ public:
   }
 
   // iterates over all vertices `v`, calling `f(v)` on each of them
-  template <typename ConcurrencyTag, typename Functor>
+  template <typename ConcurrencyTag = CGAL::Sequential_tag, typename Functor>
   void iterate_vertices(Functor& f) const
   {
     m_topo.iterate_vertices(f, ConcurrencyTag{});
   }
 
   // iterates over all edges `e`, calling `f(e)` on each of them
-  template <typename ConcurrencyTag, typename Functor>
+  template <typename ConcurrencyTag = CGAL::Sequential_tag, typename Functor>
   void iterate_edges(Functor& f) const
   {
     m_topo.iterate_edges(f, ConcurrencyTag{});
   }
 
   // iterates over all cells `c`, calling `f(c)` on each of them
-  template <typename ConcurrencyTag, typename Functor>
+  template <typename ConcurrencyTag = CGAL::Sequential_tag, typename Functor>
   void iterate_cells(Functor& f) const
   {
     m_topo.iterate_cells(f, ConcurrencyTag{});

@@ -12,7 +12,8 @@ using FT = typename Kernel::FT;
 using Point = typename Kernel::Point_3;
 using Vector = typename Kernel::Vector_3;
 
-using Grid = CGAL::Isosurfacing::Cartesian_grid_3<Kernel>;
+using FunctionGrid = CGAL::Isosurfacing::Cartesian_grid_3<FT>;
+using GradientGrid = CGAL::Isosurfacing::Cartesian_grid_3<Vector>;
 
 using Point_range = std::vector<Point>;
 using Polygon_range = std::vector<std::vector<std::size_t> >;
@@ -21,31 +22,27 @@ int main(int, char**)
 {
   // create bounding box and grid
   const CGAL::Bbox_3 bbox{-1., -1., -1.,  1., 1., 1.};
-  Grid grid { 30, 30, 30, bbox };
-
-  // compute field values and gradients
-  for(std::size_t x=0; x<grid.xdim(); ++x) {
-    for(std::size_t y=0; y<grid.ydim(); ++y) {
-      for(std::size_t z=0; z<grid.zdim(); ++z)
-      {
-        const FT pos_x = x * grid.spacing()[0] + bbox.xmin();
-        const FT pos_y = y * grid.spacing()[1] + bbox.ymin();
-        const FT pos_z = z * grid.spacing()[2] + bbox.zmin();
-
-        const Vector direction(pos_x, pos_y, pos_z);
-        const FT distance = CGAL::approximate_sqrt(direction.squared_length());
-
-        grid.value(x, y, z) = distance;
-        grid.gradient(x, y, z) = direction / distance; // @todo check division / 0
-      }
-    }
-  }
+  FunctionGrid func_grid{ 30, 30, 30 };
+  GradientGrid grad_grid{ 30, 30, 30 };
 
   // gradient field
-  CGAL::Isosurfacing::Explicit_Cartesian_grid_gradient_3<Grid> gradient(grid);
+  CGAL::Isosurfacing::Explicit_Cartesian_grid_gradient_3<Kernel, GradientGrid> gradient(grad_grid, bbox);
 
   // create domain from scalar and gradient fields
-  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain(grid, gradient);
+  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain<Kernel>(bbox, func_grid, gradient);
+  using Domain = decltype(domain);
+
+  // compute field values and gradients
+  auto init_grid = [&](const Domain::Vertex_descriptor& v)
+  {
+    const Vector direction = domain.point(v) - CGAL::ORIGIN;
+    const FT distance = CGAL::approximate_sqrt(direction.squared_length());
+
+    func_grid(v) = distance;
+    grad_grid(v) = direction / distance; // @todo check division / 0
+  };
+
+  domain.iterate_vertices(init_grid);
 
   Point_range points;
   Polygon_range polygons;

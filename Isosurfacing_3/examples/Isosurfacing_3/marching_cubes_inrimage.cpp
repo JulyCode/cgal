@@ -9,8 +9,9 @@
 #include <vector>
 
 using Kernel = CGAL::Simple_cartesian<double>;
+using FT = typename Kernel::FT;
 using Point = typename Kernel::Point_3;
-using Grid = CGAL::Isosurfacing::Cartesian_grid_3<Kernel>;
+using Grid = CGAL::Isosurfacing::Cartesian_grid_3<FT>;
 
 using Point_range = std::vector<Point>;
 using Polygon_range = std::vector<std::vector<std::size_t> >;
@@ -28,10 +29,11 @@ int main(int, char**)
   }
 
   // convert image to a Cartesian grid
-  Grid grid{image};
+  Grid grid = Grid::from_image(image);
+  CGAL::Bbox_3 bbox = Grid::bbox_from_image(image);
 
   // create a domain from the grid
-  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain(grid);
+  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain<Kernel>(bbox, grid);
 
   // prepare collections for the output indexed mesh
   Point_range points;

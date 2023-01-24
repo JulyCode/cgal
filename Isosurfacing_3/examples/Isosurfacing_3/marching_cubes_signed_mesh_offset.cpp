@@ -20,7 +20,7 @@ using FT = typename Kernel::FT;
 using Point = typename Kernel::Point_3;
 using Vector = typename Kernel::Vector_3;
 
-using Grid = CGAL::Isosurfacing::Cartesian_grid_3<Kernel>;
+using Grid = CGAL::Isosurfacing::Cartesian_grid_3<FT>;
 
 using Mesh = CGAL::Surface_mesh<Point>;
 
@@ -66,30 +66,26 @@ int main(int, char**)
   CGAL::Side_of_triangle_mesh<Mesh, CGAL::GetGeomTraits<Mesh>::type> sotm(mesh_input);
 
   // create grid
-  Grid grid { n_voxels, n_voxels, n_voxels, aabb_grid };
-
-  for(std::size_t z=0; z<grid.zdim(); ++z) {
-    for(std::size_t y=0; y<grid.ydim(); ++y) {
-      for(std::size_t x=0; x<grid.xdim(); ++x)
-      {
-        const FT pos_x = x * grid.spacing()[0] + grid.bbox().xmin();
-        const FT pos_y = y * grid.spacing()[1] + grid.bbox().ymin();
-        const FT pos_z = z * grid.spacing()[2] + grid.bbox().zmin();
-        const Point p(pos_x, pos_y, pos_z);
-
-        // compute unsigned distance to input mesh
-        grid.value(x, y, z) = distance_to_mesh(tree, p);
-
-        // sign distance so that it is negative inside the mesh
-        const bool is_inside = (sotm(p) == CGAL::ON_BOUNDED_SIDE);
-        if(is_inside)
-          grid.value(x, y, z) *= -1.0;
-      }
-    }
-  }
+  Grid grid { n_voxels, n_voxels, n_voxels };
 
   // create domain from the grid
-  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain(grid);
+  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain<Kernel>(aabb_grid, grid);
+  using Domain = decltype(domain);
+
+  // compute and store function values at all grid points
+  auto init_grid = [&](const Domain::Vertex_descriptor& v)
+  {
+    // compute unsigned distance to input mesh
+    const Point& p = domain.point(v);
+    grid(v) = distance_to_mesh(tree, p);
+
+    // sign distance so that it is negative inside the mesh
+    const bool is_inside = (sotm(p) == CGAL::ON_BOUNDED_SIDE);
+    if (is_inside)
+      grid(v) *= -1.0;
+  };
+
+  domain.iterate_vertices(init_grid);
 
   // containers for the triangle soup output
   Point_range points;

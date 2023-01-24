@@ -12,8 +12,9 @@
 using Kernel = CGAL::Simple_cartesian<double>;
 using FT = typename Kernel::FT;
 using Point = typename Kernel::Point_3;
+using Vector = typename Kernel::Vector_3;
 
-using Grid = CGAL::Isosurfacing::Cartesian_grid_3<Kernel>;
+using Grid = CGAL::Isosurfacing::Cartesian_grid_3<FT>;
 
 using Point_range = std::vector<Point>;
 using Polygon_range = std::vector<std::vector<std::size_t> >;
@@ -22,25 +23,19 @@ int main(int, char**)
 {
   // create a Cartesian grid with 100^3 grid points and the bounding box [-1, 1]^3
   const CGAL::Bbox_3 bbox{-1., -1., -1., 1., 1., 1.};
-  Grid grid { 50, 50, 50, bbox };
-
-  // compute and store function values at all grid points
-  for(std::size_t x=0; x<grid.xdim(); ++x) {
-    for(std::size_t y=0; y<grid.ydim(); ++y) {
-      for(std::size_t z=0; z<grid.zdim(); ++z)
-      {
-        const FT pos_x = x * grid.spacing()[0] + bbox.xmin();
-        const FT pos_y = y * grid.spacing()[1] + bbox.ymin();
-        const FT pos_z = z * grid.spacing()[2] + bbox.zmin();
-
-        // Euclidean distance to the origin
-        grid.value(x, y, z) = sqrt(pos_x * pos_x + pos_y * pos_y + pos_z * pos_z);
-      }
-    }
-  }
+  Grid grid { 50, 50, 50 };
 
   // create a domain from the grid
-  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain(grid);
+  auto domain = CGAL::Isosurfacing::create_explicit_Cartesian_grid_domain<Kernel>(bbox, grid);
+  using Domain = decltype(domain);
+
+  // compute and store function values at all grid points
+  auto init_grid = [&grid, &domain](const Domain::Vertex_descriptor& v)
+  {
+    grid(v) = sqrt((domain.point(v) - CGAL::ORIGIN).squared_length());
+  };
+
+  domain.iterate_vertices(init_grid);
 
   // prepare collections for the result
   Point_range points;

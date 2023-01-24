@@ -20,30 +20,37 @@ namespace CGAL {
 namespace Isosurfacing {
 namespace internal {
 
-template <typename Grid_>
-class Explicit_Cartesian_grid_function
+template <typename Grid, typename T>
+class Cartesian_grid_3_view
 {
 public:
-  using Grid = Grid_;
-  using Geom_traits = typename Grid::Geom_traits;
-  using FT = typename Geom_traits::FT;
+  using value_type = T;
 
   using Vertex_descriptor = typename Grid_topology_3::Vertex_descriptor;
 
 public:
-  Explicit_Cartesian_grid_function(const Grid& grid)
+  Cartesian_grid_3_view(const Grid& grid)
     : grid{grid}
   { }
 
   // gets the value at vertex `v`
-  FT operator()(const Vertex_descriptor& v) const
+  value_type operator()(const Vertex_descriptor& v) const
   {
-    return grid.value(v[0], v[1], v[2]);
+    return grid(v);
   }
 
 private:
   const Grid& grid;
 };
+
+template<typename GeomTraits, typename Grid>
+using Explicit_Cartesian_grid_function_3 = Cartesian_grid_3_view<Grid, typename GeomTraits::FT>;
+
+template<typename GeomTraits, typename Grid>
+using Explicit_Cartesian_grid_gradient_3 = Cartesian_grid_3_view<Grid, typename GeomTraits::Vector_3>;
+
+template<typename GeomTraits, typename Grid>
+using Explicit_Cartesian_grid_geometry_3 = Cartesian_grid_3_view<Grid, typename GeomTraits::Point_3>;
 
 } // namespace internal
 } // namespace Isosurfacing

@@ -32,18 +32,22 @@ namespace Isosurfacing {
 template <template <typename GeomTraits> class Cartesian_grid_3>
 class Explicit_Cartesian_grid_gradient_3
 #else
-template <typename Grid>
+template <typename GeomTraits, typename Grid>
 class Explicit_Cartesian_grid_gradient_3
 #endif
 {
 public:
-  using Geom_traits = typename Grid::Geom_traits;
+  using Geom_traits = GeomTraits;
   using FT = typename Geom_traits::FT;
   using Point_3 = typename Geom_traits::Point_3;
   using Vector_3 = typename Geom_traits::Vector_3;
 
 private:
   const Grid& m_grid;
+  const Bbox_3& m_bbox;
+  Vector_3 m_spacing;
+
+  const GeomTraits& m_gt;
 
 public:
   /**
@@ -51,9 +55,19 @@ public:
    *
    * \param grid the %Cartesian grid that stores the gradient
    */
-  Explicit_Cartesian_grid_gradient_3(const Grid& grid)
-    : m_grid(grid)
-  { }
+  Explicit_Cartesian_grid_gradient_3(const Grid& grid,
+                                     const Bbox_3& bbox,
+                                     const GeomTraits& gt = GeomTraits())
+    : m_grid(grid), m_bbox(bbox), m_gt(gt)
+  {
+    auto vector = gt.construct_vector_3_object();
+
+    // calculate grid spacing
+    const FT d_x = FT{ bbox.x_span() } / (grid.xdim() - 1);
+    const FT d_y = FT{ bbox.y_span() } / (grid.ydim() - 1);
+    const FT d_z = FT{ bbox.z_span() } / (grid.zdim() - 1);
+    m_spacing = vector(d_x, d_y, d_z);
+  }
 
   /**
    * \brief evaluates the gradient at a point in space.
@@ -62,19 +76,17 @@ public:
    */
   Vector_3 operator()(const Point_3& p) const
   {
-    typename Geom_traits::Compute_x_3 x_coord = m_grid.geom_traits().compute_x_3_object();
-    typename Geom_traits::Compute_y_3 y_coord = m_grid.geom_traits().compute_y_3_object();
-    typename Geom_traits::Compute_z_3 z_coord = m_grid.geom_traits().compute_z_3_object();
-    typename Geom_traits::Construct_vector_3 vector = m_grid.geom_traits().construct_vector_3_object();
+    typename Geom_traits::Compute_x_3 x_coord = m_gt.compute_x_3_object();
+    typename Geom_traits::Compute_y_3 y_coord = m_gt.compute_y_3_object();
+    typename Geom_traits::Compute_z_3 z_coord = m_gt.compute_z_3_object();
+    typename Geom_traits::Construct_vector_3 vector = m_gt.construct_vector_3_object();
 
     // trilinear interpolation of stored gradients
-    const Bbox_3& bbox = m_grid.bbox();
-    const Vector_3& spacing = m_grid.spacing();
 
     // calculate min index including border case
-    std::size_t min_i = (x_coord(p) - bbox.xmin()) / x_coord(spacing);
-    std::size_t min_j = (y_coord(p) - bbox.ymin()) / y_coord(spacing);
-    std::size_t min_k = (z_coord(p) - bbox.zmin()) / z_coord(spacing);
+    std::size_t min_i = (x_coord(p) - m_bbox.xmin()) / x_coord(m_spacing);
+    std::size_t min_j = (y_coord(p) - m_bbox.ymin()) / y_coord(m_spacing);
+    std::size_t min_k = (z_coord(p) - m_bbox.zmin()) / z_coord(m_spacing);
 
     if(min_i == m_grid.xdim() - 1)
       --min_i;
@@ -86,24 +98,24 @@ public:
       --min_k;
 
     // calculate coordinates of min index
-    const FT min_x = min_i * x_coord(spacing) + bbox.xmin();
-    const FT min_y = min_j * y_coord(spacing) + bbox.ymin();
-    const FT min_z = min_k * z_coord(spacing) + bbox.zmin();
+    const FT min_x = min_i * x_coord(m_spacing) + m_bbox.xmin();
+    const FT min_y = min_j * y_coord(m_spacing) + m_bbox.ymin();
+    const FT min_z = min_k * z_coord(m_spacing) + m_bbox.zmin();
 
     // interpolation factors between 0 and 1
-    const FT f_i = (x_coord(p) - min_x) / x_coord(spacing);
-    const FT f_j = (y_coord(p) - min_y) / y_coord(spacing);
-    const FT f_k = (z_coord(p) - min_z) / z_coord(spacing);
+    const FT f_i = (x_coord(p) - min_x) / x_coord(m_spacing);
+    const FT f_j = (y_coord(p) - min_y) / y_coord(m_spacing);
+    const FT f_k = (z_coord(p) - min_z) / z_coord(m_spacing);
 
     // read the gradient at all 8 corner points
-    const Vector_3& g000 = m_grid.gradient(min_i + 0, min_j + 0, min_k + 0);
-    const Vector_3& g001 = m_grid.gradient(min_i + 0, min_j + 0, min_k + 1);
-    const Vector_3& g010 = m_grid.gradient(min_i + 0, min_j + 1, min_k + 0);
-    const Vector_3& g011 = m_grid.gradient(min_i + 0, min_j + 1, min_k + 1);
-    const Vector_3& g100 = m_grid.gradient(min_i + 1, min_j + 0, min_k + 0);
-    const Vector_3& g101 = m_grid.gradient(min_i + 1, min_j + 0, min_k + 1);
-    const Vector_3& g110 = m_grid.gradient(min_i + 1, min_j + 1, min_k + 0);
-    const Vector_3& g111 = m_grid.gradient(min_i + 1, min_j + 1, min_k + 1);
+    const Vector_3& g000 = m_grid(min_i + 0, min_j + 0, min_k + 0);
+    const Vector_3& g001 = m_grid(min_i + 0, min_j + 0, min_k + 1);
+    const Vector_3& g010 = m_grid(min_i + 0, min_j + 1, min_k + 0);
+    const Vector_3& g011 = m_grid(min_i + 0, min_j + 1, min_k + 1);
+    const Vector_3& g100 = m_grid(min_i + 1, min_j + 0, min_k + 0);
+    const Vector_3& g101 = m_grid(min_i + 1, min_j + 0, min_k + 1);
+    const Vector_3& g110 = m_grid(min_i + 1, min_j + 1, min_k + 0);
+    const Vector_3& g111 = m_grid(min_i + 1, min_j + 1, min_k + 1);
 
     // interpolate along all axes by weighting the corner points
     const FT lambda000 = (1 - f_i) * (1 - f_j) * (1 - f_k);
