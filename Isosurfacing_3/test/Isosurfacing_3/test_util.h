@@ -46,6 +46,77 @@ bool has_degenerate_faces(PolygonMesh& pmesh)
   return !dfs.empty();
 }
 
+// template <typename PointRange, typename PolygonRange>
+// bool is_closed(PointRange points, PolygonRange polygons) {
+//   struct Edge {
+//     std::size_t v0, v1;
+//   };
+//   struct EdgeHash {
+//     std::size_t operator()(const Edge& e) const {
+//       std::size_t hash = 17;
+//       hash = hash * 31 + e.v0;
+//       hash = hash * 31 + e.v1;
+//       return hash;
+//     }
+//   };
+//   struct EdgeEqual {
+//     std::size_t operator()(const Edge& e1, const Edge& e2) const {
+//       return e1.v0 == e2.v0 && e1.v1 == e2.v1;
+//     }
+//   };
+
+//   std::unordered_map<Edge, std::size_t, EdgeHash, EdgeEqual> edges;
+
+//   for (const auto& face : polygons) {
+//     for (std::size_t i = 0; i < face.size(); i++) {
+//       const std::size_t v0 = face[i];
+//       const std::size_t v1 = face[(i + 1) % face.size()];
+
+//       Edge edge = {v0, v1};
+//       if (v0 > v1) {
+//         edge = {v1, v0};
+//       }
+
+//       if (edges.find(edge) == edges.end()) {
+//         edges[edge] = 1;
+//       } else {
+//         edges[edge]++;
+//       }
+//     }
+//   }
+
+//   for (auto& [edge, occurrences] : edges) {
+//     if (occurrences != 2) {
+//       return false;
+//     }
+//   }
+//   return true;
+// }
+
+// template <typename PolygonMesh>
+// bool is_closed(const PolygonMesh& pmesh) {
+//   for (const auto& edge : pmesh.edges()) {
+//     if (pmesh.is_border(edge)) {
+//       return false;
+//     }
+//   }
+//   return true;
+// }
+
+template <typename PolygonMesh>
+bool is_self_intersecting(const PolygonMesh& pmesh) {
+  return CGAL::Polygon_mesh_processing::does_self_intersect(pmesh);
+}
+
+template <typename PolygonMesh>
+bool is_watertight(PolygonMesh& pmesh) {
+  const bool manifold = is_manifold(pmesh);
+  const bool closed = is_closed(pmesh);
+  const bool self_intersecting = is_self_intersecting(pmesh);
+  return manifold && closed && !self_intersecting;
+}
+
+
 // template <typename PolygonMesh>
 // bool check_mesh_distance(const PolygonMesh& m0, const PolygonMesh& m1)
 // {

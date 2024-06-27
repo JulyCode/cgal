@@ -1,4 +1,5 @@
 #include "test_util.h"
+#include "test_topology.h"
 
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Surface_mesh.h>
@@ -25,7 +26,7 @@ using Triangle_range = std::vector<std::array<std::size_t, 3> >;
 
 using Mesh = CGAL::Surface_mesh<Point>;
 
-#define CGAL_TESTUISTE_ISOSURFACING_OUTPUT
+#define CGAL_TESTSUITE_ISOSURFACING_OUTPUT
 
 namespace IS = CGAL::Isosurfacing;
 
@@ -75,8 +76,9 @@ void test_implicit_sphere()
   Mesh m;
   CGAL::Polygon_mesh_processing::polygon_soup_to_polygon_mesh(points, triangles, m);
 
-  assert(is_manifold(m));
   assert(!has_degenerate_faces(m));
+  assert(is_manifold(m));
+  assert(is_watertight(m));
 }
 
 void test_grid_sphere(const std::size_t n)
@@ -123,7 +125,7 @@ void test_grid_sphere(const std::size_t n)
   std::cout << "Output #vertices: " << points.size() << std::endl;
   std::cout << "Output #polygons: " << triangles.size() << std::endl;
 
-#ifdef CGAL_TESTUISTE_ISOSURFACING_OUTPUT
+#ifdef CGAL_TESTSUITE_ISOSURFACING_OUTPUT
   const std::string test_name = "test_grid_sphere(" + std::to_string(n) + ")";
   CGAL::IO::write_polygon_soup(test_name + ".off", points, triangles);
 #endif
@@ -142,12 +144,14 @@ void test_grid_sphere(const std::size_t n)
 
 int main(int, char**)
 {
-  test_implicit_sphere();
-  test_grid_sphere(2);
-  test_grid_sphere(3);
-  test_grid_sphere(10);
-  test_grid_sphere(50);
-  test_grid_sphere(100);
+  test_random();
+
+  // test_implicit_sphere();
+  // test_grid_sphere(2);
+  // test_grid_sphere(3);
+  // test_grid_sphere(10);
+  // test_grid_sphere(50);
+  // test_grid_sphere(100);
 
   std::cout << "Done" << std::endl;
 
