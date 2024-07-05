@@ -315,10 +315,15 @@ private:
       v1 = (unsigned int)(l_edges_[e] >> 4) & 0xF;
     };
 
+    if (cell[0] == 1 && cell[1] == 1 && cell[2] == 1)
+    {
+      std::cout << std::endl;
+    }
+
     // A hexahedron has twelve edges, save the intersection of the isosurface with the edge
     // save global edge and global vertex index of isosurface
     std::array<Point_index, 12> vertices;
-    std::array<Point_3, 12> points;
+    std::array<Point_3, 12> points_local;
 
     // save local coordinate along the edge of intersection point
     std::vector<FT> ecoord(12, FT(0));
@@ -342,9 +347,20 @@ private:
         const FT py = (FT(1) - l) * y_coord(corners[v0]) + l * y_coord(corners[v1]);
         const FT pz = (FT(1) - l) * z_coord(corners[v0]) + l * z_coord(corners[v1]);
 
+        FT local_u = l;
+        FT local_v = l;
+        FT local_w = l;
+        if (((v0 ^ v1) & 0b1) == 0)
+          local_u = v0 & v1 & 0b1;
+        if (((v0 ^ v1) & 0b10) == 0)
+          local_v = (v0 & v1 & 0b10) >> 1;
+        if (((v0 ^ v1) & 0b100) == 0)
+          local_w = (v0 & v1 & 0b100) >> 2;
+
+        points_local[eg] = point(local_u, local_v, local_w);
+
         // add vertex and insert to map
-        points[eg] = point(px, py, pz);
-        vertices[eg] = add_point(points[eg], compute_edge_index(cell, eg));
+        vertices[eg] = add_point(point(px, py, pz), compute_edge_index(cell, eg));
       }
 
       // next edge
@@ -866,17 +882,116 @@ private:
       saddle_point_idx[i] = add_point_unchecked(point(px, py, pz));
     }
 
-    for(int contour=0; contour<(int)cnt_; ++contour)
+    for(int face=0; face<6; ++face)
     {
-      Point_index other = vertices[get_c(contour, 0, c_)];
+      // classify face
+      unsigned int f_case = 0;
+      unsigned int v0 = get_face_v(face, 0);
+      unsigned int v1 = get_face_v(face, 1);
+      unsigned int v2 = get_face_v(face, 2);
+      unsigned int v3 = get_face_v(face, 3);
+      unsigned int e0 = get_face_e(face, 0);
+      unsigned int e1 = get_face_e(face, 1);
+      unsigned int e2 = get_face_e(face, 2);
+      unsigned int e3 = get_face_e(face, 3);
+      FT f0 = values[v0];
+      FT f1 = values[v1];
+      FT f2 = values[v2];
+      FT f3 = values[v3];
+      if(f0 >= i0) f_case |= BIT_1;
+      if(f1 >= i0) f_case |= BIT_2;
+      if(f2 >= i0) f_case |= BIT_3;
+      if(f3 >= i0) f_case |= BIT_4;
 
-      const int contour_size = get_cnt_size(contour, c_);
-      for(int i=1; i<contour_size - 1; ++i)
+      std::array<std::pair<int, int>, 2> segments;
+      segments[0] = std::make_pair(-1, -1);
+      segments[1] = std::make_pair(-1, -1);
+      switch (f_case)
       {
-        const int e0 = get_c(contour, i, c_);
-        const int e1 = get_c(contour, (i + 1) % contour_size, c_);
+        case 1:
+          segments[0] = std::make_pair(e0, e3);
+        break;
+        case 2:
+          segments[0] = std::make_pair(e1, e0);
+        break;
+        case 3:
+          segments[0] = std::make_pair(e1, e3);
+        break;
+        case 4:
+          segments[0] = std::make_pair(e3, e2);
+        break;
+        case 5:
+          segments[0] = std::make_pair(e0, e2);
+        break;
+        case 6:
+        {
+          const FT val = asymptotic_decider(f0, f1, f2, f3);
+          if(val > i0)
+          {
+            segments[0] = std::make_pair(e3, e0);
+            segments[1] = std::make_pair(e1, e2);
+          }
+          else if(val < i0)
+          {
+            segments[0] = std::make_pair(e1, e0);
+            segments[1] = std::make_pair(e3, e2);
+          }
+          else
+          {
+            
+          }
+        }
+        break;
+        case 7:
+          segments[0] = std::make_pair(e1, e2);
+        break;
+        case 8:
+          segments[0] = std::make_pair(e2, e1);
+        break;
+        case 9:
+        {
+          const FT val = asymptotic_decider(f0, f1, f2, f3);
+          if(val > i0)
+          {
+            segments[0] = std::make_pair(e0, e1);
+            segments[1] = std::make_pair(e2, e3);
+          }
+          else if(val < i0)
+          {
+            segments[0] = std::make_pair(e0, e3);
+            segments[1] = std::make_pair(e2, e1);
+          }
+          else
+          {
+            
+          }
+        }
+        break;
+        case 10:
+          segments[0] = std::make_pair(e2, e0);
+        break;
+        case 11:
+          segments[0] = std::make_pair(e2, e3);
+        break;
+        case 12:
+          segments[0] = std::make_pair(e3, e1);
+        break;
+        case 13:
+          segments[0] = std::make_pair(e0, e1);
+        break;
+        case 14:
+          segments[0] = std::make_pair(e3, e0);
+        break;
+        default:
+        break;
+      }
 
-        int face = 0;
+      for (int i = 0; i < segments.size(); i++)
+      {
+        const int e0 = segments[i].first;
+        const int e1 = segments[i].second;
+        if (e0 == -1)
+          break;
 
         int segment_local_u;
         int segment_local_v;
@@ -920,25 +1035,141 @@ private:
             segment_local_v = 2;
             segment_local_w = 0;
             break;
+          default:
+            assert(false);
         }
 
-        const FT segment_u_min = std::min(points[e0][segment_local_u], points[e1][segment_local_u]);
-        const FT segment_u_max = std::max(points[e0][segment_local_u], points[e1][segment_local_u]);
-        const FT segment_v_min = std::min(points[e0][segment_local_v], points[e1][segment_local_v]);
-        const FT segment_v_max = std::max(points[e0][segment_local_v], points[e1][segment_local_v]);
+        const FT segment_u_min = std::min(points_local[e0][segment_local_u], points_local[e1][segment_local_u]);
+        const FT segment_u_max = std::max(points_local[e0][segment_local_u], points_local[e1][segment_local_u]);
+        const FT segment_v_min = std::min(points_local[e0][segment_local_v], points_local[e1][segment_local_v]);
+        const FT segment_v_max = std::max(points_local[e0][segment_local_v], points_local[e1][segment_local_v]);
+
+        FT min_w_dist = 1;
+        std::size_t closest_saddle = -1;
 
         for (std::size_t j = 0; j < saddle_points.size(); j++)
         {
           const FT saddle_u = saddle_points[j][segment_local_u];
           const FT saddle_v = saddle_points[j][segment_local_v];
+          const FT saddle_w = saddle_points[j][segment_local_w];
 
-          
+          if (saddle_u > segment_u_min && saddle_u < segment_u_max && saddle_v > segment_v_min && saddle_v < segment_v_max)  // equals?
+          {
+            const FT w_dist = std::abs(saddle_w - face_w);
+            if (w_dist < min_w_dist && saddle_w >= 0 && saddle_w <= 1)
+            {
+              min_w_dist = w_dist;
+              closest_saddle = j;
+            }
+          }
         }
 
-
-        add_triangle(vertices[e0], vertices[e1], other);
+        if (closest_saddle != -1)
+          add_triangle(vertices[e0], vertices[e1], saddle_point_idx[closest_saddle]);
       }
     }
+
+    // for(int contour=0; contour<(int)cnt_; ++contour)
+    // {
+    //   Point_index other = vertices[get_c(contour, 0, c_)];
+
+    //   const int contour_size = get_cnt_size(contour, c_);
+    //   for(int i=1; i<contour_size - 1; ++i)
+    //   {
+    //     const int e0 = get_c(contour, i, c_);
+    //     const int e1 = get_c(contour, (i + 1) % contour_size, c_);
+
+    //     int face = -1;
+    //     if (points_local[e0][2] == 0 && points_local[e1][2] == 0)
+    //       face = 0;
+    //     if (points_local[e0][2] == 1 && points_local[e1][2] == 1)
+    //       face = 1;
+    //     if (points_local[e0][1] == 0 && points_local[e1][1] == 0)
+    //       face = 2;
+    //     if (points_local[e0][1] == 1 && points_local[e1][1] == 1)
+    //       face = 3;
+    //     if (points_local[e0][0] == 0 && points_local[e1][0] == 0)
+    //       face = 4;
+    //     if (points_local[e0][0] == 1 && points_local[e1][0] == 1)
+    //       face = 5;
+
+    //     int segment_local_u;
+    //     int segment_local_v;
+    //     int segment_local_w;
+    //     FT face_w;
+    //     switch (face)
+    //     {
+    //       case 0:
+    //         face_w = 0;
+    //         segment_local_u = 0;
+    //         segment_local_v = 1;
+    //         segment_local_w = 2;
+    //         break;
+    //       case 1:
+    //         face_w = 1;
+    //         segment_local_u = 0;
+    //         segment_local_v = 1;
+    //         segment_local_w = 2;
+    //         break;
+    //       case 2:
+    //         face_w = 0;
+    //         segment_local_u = 0;
+    //         segment_local_v = 2;
+    //         segment_local_w = 1;
+    //         break;
+    //       case 3:
+    //         face_w = 1;
+    //         segment_local_u = 0;
+    //         segment_local_v = 2;
+    //         segment_local_w = 1;
+    //         break;
+    //       case 4:
+    //         face_w = 0;
+    //         segment_local_u = 1;
+    //         segment_local_v = 2;
+    //         segment_local_w = 0;
+    //         break;
+    //       case 5:
+    //         face_w = 1;
+    //         segment_local_u = 1;
+    //         segment_local_v = 2;
+    //         segment_local_w = 0;
+    //         break;
+    //       default:
+    //         assert(false);
+    //     }
+
+    //     const FT segment_u_min = std::min(points_local[e0][segment_local_u], points_local[e1][segment_local_u]);
+    //     const FT segment_u_max = std::max(points_local[e0][segment_local_u], points_local[e1][segment_local_u]);
+    //     const FT segment_v_min = std::min(points_local[e0][segment_local_v], points_local[e1][segment_local_v]);
+    //     const FT segment_v_max = std::max(points_local[e0][segment_local_v], points_local[e1][segment_local_v]);
+
+    //     FT min_w_dist = 1;
+    //     std::size_t closest_saddle = -1;
+
+    //     for (std::size_t j = 0; j < saddle_points.size(); j++)
+    //     {
+    //       const FT saddle_u = saddle_points[j][segment_local_u];
+    //       const FT saddle_v = saddle_points[j][segment_local_v];
+    //       const FT saddle_w = saddle_points[j][segment_local_w];
+
+    //       if (saddle_u > segment_u_min && saddle_u < segment_u_max && saddle_v > segment_v_min && saddle_v < segment_v_max)  // equals?
+    //       {
+    //         const FT w_dist = std::abs(saddle_w - face_w);
+    //         if (w_dist < min_w_dist)
+    //         {
+    //           min_w_dist = w_dist;
+    //           closest_saddle = j;
+    //         }
+    //       }
+    //     }
+
+    //     if (closest_saddle != -1)
+    //       other = saddle_point_idx[closest_saddle];
+        
+    //     add_triangle(vertices[e0], vertices[e1], other);
+    //   }
+    // }
 
     return true;
 
