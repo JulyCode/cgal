@@ -683,7 +683,8 @@ void test_random()
 
   FT iso = 0;
   // generate_random_easy(grid, values);
-  iso = generate_predefined_inner_ambiguity(grid, values, AmbiguousCase::CONTOUR_6_VTS);
+  // iso = generate_predefined_inner_ambiguity(grid, values, AmbiguousCase::MC_13_TUNNEL);
+  iso = generate_predefined_singular(grid, values, SingularCase::CASE_3);
 
   {
     Grid grid_high_res { Point{-1., -1., -1.}, Point{1., 1., 1.}, std::array<std::size_t, 3>{151, 151, 151} };
@@ -755,8 +756,8 @@ void test_random()
       }
     };
 
-    IS::Value_function_3<Grid> values_high_res_large {Extra{grid, values}, grid_high_res_large };
-    IS::Marching_cubes_domain_3<Grid, IS::Value_function_3<Grid>> domain_high_res { grid_high_res_large, values_high_res_large };
+    IS::Value_function_3<Grid> values_high_res_large {Extra{grid, values}, grid_high_res };
+    IS::Marching_cubes_domain_3<Grid, IS::Value_function_3<Grid>> domain_high_res { grid_high_res, values_high_res };
 
     Point_range points_high_res;
     Triangle_range triangles_high_res;

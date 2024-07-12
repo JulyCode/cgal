@@ -17,8 +17,8 @@
 
 #include <CGAL/Isosurfacing_3/internal/marching_cubes_functors.h>
 // #include <CGAL/Isosurfacing_3/internal/topologically_correct_marching_cubes_functors.h>
-#include <CGAL/Isosurfacing_3/internal/topologically_correct_marching_cubes_functors_singular.h>
-// #include <CGAL/Isosurfacing_3/internal/rtmc.h>
+// #include <CGAL/Isosurfacing_3/internal/topologically_correct_marching_cubes_functors_singular.h>
+#include <CGAL/Isosurfacing_3/internal/rtmc.h>
 
 #include <CGAL/Named_function_parameters.h>
 #include <CGAL/tags.h>
@@ -75,7 +75,7 @@ void marching_cubes(const Domain& domain,
 
   if(use_tmc)
   {
-    internal::TMC_functor_singular<Domain, PointRange, TriangleRange> functor(domain, isovalue);
+    internal::RTMC_functor<Domain, PointRange, TriangleRange> functor(domain, isovalue);
     domain.template for_each_cell<ConcurrencyTag>(functor);
     functor.to_triangle_soup(points, triangles);
   }
