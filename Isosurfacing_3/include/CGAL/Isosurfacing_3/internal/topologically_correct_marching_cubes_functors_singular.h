@@ -312,6 +312,12 @@ private:
       v1 = (unsigned int)(l_edges_[e] >> 4) & 0xF;
     };
 
+    if (cell[0] == 0 && cell[1] == 1 && cell[2] == 1)
+    {
+      // return true;
+      std::cout << std::endl;
+    }
+
     // A hexahedron has twelve edges, save the intersection of the isosurface with the edge
     // save global edge and global vertex index of isosurface
     std::array<Point_index, 12> vertices;
@@ -334,14 +340,24 @@ private:
         FT l = (i0 - values[v0]) / (values[v1] - values[v0]);
         ecoord[eg] = l;
 
+        FT local_u = l;
+        FT local_v = l;
+        FT local_w = l;
+        if (((v0 ^ v1) & 0b1) == 0)
+          local_u = v0 & v1 & 0b1;
+        if (((v0 ^ v1) & 0b10) == 0)
+          local_v = (v0 & v1 & 0b10) >> 1;
+        if (((v0 ^ v1) & 0b100) == 0)
+          local_w = (v0 & v1 & 0b100) >> 2;
+
         // interpolate vertex
         const FT px = (FT(1) - l) * x_coord(corners[v0]) + l * x_coord(corners[v1]);
         const FT py = (FT(1) - l) * y_coord(corners[v0]) + l * y_coord(corners[v1]);
         const FT pz = (FT(1) - l) * z_coord(corners[v0]) + l * z_coord(corners[v1]);
 
         // add vertex and insert to map
-        points[eg] = point(px, py, pz);
-        vertices[eg] = add_point(points[eg], compute_edge_index(cell, eg));
+        points[eg] = point(local_u, local_v, local_w);
+        vertices[eg] = add_point(point(px, py, pz), compute_edge_index(cell, eg));
       }
 
       // next edge
@@ -667,130 +683,51 @@ private:
     FT ui[2]{};
     FT vi[2]{};
     FT wi[2]{};
-    // unsigned char q_sol = 0;
-    // const FT a = (values[0] - values[1]) * (-values[6] + values[7] + values[4] - values[5]) -
-    //              (values[4] - values[5]) * (-values[2] + values[3] + values[0] - values[1]);
-    // const FT b = (i0 - values[0]) * (-values[6] + values[7] + values[4] - values[5]) +
-    //                (values[0] - values[1]) * (values[6] - values[4]) -
-    //              (i0 - values[4]) * (-values[2] + values[3] + values[0] - values[1]) -
-    //                (values[4] - values[5]) * (values[2] - values[0]);
-    // const FT c = (i0 - values[0]) * (values[6] - values[4]) - (i0 - values[4]) * (values[2] - values[0]);
 
-    {
-      const FT f0 = values[0];
-      const FT f1 = values[1];
-      const FT f2 = values[2];
-      const FT f3 = values[3];
-      const FT h0 = values[4];
-      const FT h1 = values[5];
-      const FT h2 = values[6];
-      const FT h3 = values[7]; 
-
-      const FT e1 = f0+f3-f1-f2;  // eta coefficient of hyperbola
-      const FT v1 = (f0-f1)/e1;  // asymptotes
-      const FT u1 = (f0-f2)/e1;
-      const FT a1 = (f0*f3 - f1*f2)/e1;  // alpha coefficient of hyperbola
-      const FT e2 = h0+h3-h1-h2;
-      const FT v2 = (h0-h1)/e2;
-      const FT u2 = (h0-h2)/e2;
-      const FT a2 = (h0*h3 - h1*h2)/e2;
-      
-      // solve quadratic equation for opposing hyperbola intersections
-      const FT a = (v2-v1)*e1*e2;
-      const FT b = -a*(u1+u2) + (i0-a2)*e1 - (i0-a1)*e2;
-      const FT c = a*u1*u2 - (i0-a2)*e1*u1 + (i0-a1)*e2*u2;
-      FT d = b * b - FT(4) * a * c;
-
-      const FT a_ = (values[0] - values[1]) * (-values[6] + values[7] + values[4] - values[5]) -
+    const FT a = (values[0] - values[1]) * (-values[6] + values[7] + values[4] - values[5]) -
                  (values[4] - values[5]) * (-values[2] + values[3] + values[0] - values[1]);
-      const FT b_ = (i0 - values[0]) * (-values[6] + values[7] + values[4] - values[5]) +
+    const FT b = (i0 - values[0]) * (-values[6] + values[7] + values[4] - values[5]) +
                    (values[0] - values[1]) * (values[6] - values[4]) -
                  (i0 - values[4]) * (-values[2] + values[3] + values[0] - values[1]) -
                    (values[4] - values[5]) * (values[2] - values[0]);
-      const FT c_ = (i0 - values[0]) * (values[6] - values[4]) - (i0 - values[4]) * (values[2] - values[0]);
+    const FT c = (i0 - values[0]) * (values[6] - values[4]) - (i0 - values[4]) * (values[2] - values[0]);
 
-      FT d_ = b_ * b_ - FT(4) * a_ * c_;
-      
-      if(d >= 0)
-      {
-        d = sqrt(d);
-
-        // compute u-coord of solutions
-        ui[0] = (-b + d) / (FT(2) * a);
-        ui[1] = (-b - d) / (FT(2) * a);
-      }
-    }
+    FT d = b * b - FT(4) * a * c;
+    if(d > 0)
     {
-      const FT f0 = values[0];
-      const FT f1 = values[1];
-      const FT f2 = values[4];
-      const FT f3 = values[5];
-      const FT h0 = values[2];
-      const FT h1 = values[3];
-      const FT h2 = values[6];
-      const FT h3 = values[7];
+      d = sqrt(d);
 
-      const FT e1 = f0+f3-f1-f2;  // eta coefficient of hyperbola
-      const FT v1 = (f0-f1)/e1;  // asymptotes
-      const FT u1 = (f0-f2)/e1;
-      const FT a1 = (f0*f3 - f1*f2)/e1;  // alpha coefficient of hyperbola
-      const FT e2 = h0+h3-h1-h2;
-      const FT v2 = (h0-h1)/e2;
-      const FT u2 = (h0-h2)/e2;
-      const FT a2 = (h0*h3 - h1*h2)/e2;
-      
-      // solve quadratic equation for opposing hyperbola intersections
-      const FT a = (u2-u1)*e1*e2;
-      const FT b = -a*(u1+u2) + (i0-a2)*e1 - (i0-a1)*e2;
-      const FT c = a*u1*u2 - (i0-a2)*e1*u1 + (i0-a1)*e2*u2;
-      FT d = b * b - FT(4) * a * c;
-      
-      if(d >= 0)
-      {
-        d = sqrt(d);
+      // compute u-coord of solutions
+      ui[0] = (-b - d) / (FT(2) * a);
+      ui[1] = (-b + d) / (FT(2) * a);
 
-        // compute u-coord of solutions
-        wi[0] = (-b - d) / (FT(2) * a);
-        wi[1] = (-b + d) / (FT(2) * a);
-      }
-    }
-    {
-      const FT f0 = values[0];
-      const FT f1 = values[2];
-      const FT f2 = values[4];
-      const FT f3 = values[6];
-      const FT h0 = values[1];
-      const FT h1 = values[3];
-      const FT h2 = values[5];
-      const FT h3 = values[7];
+      // compute v-coord of solutions
+      FT g1 = values[0] * (FT(1) - ui[0]) + values[1] * ui[0];
+      FT g2 = values[2] * (FT(1) - ui[0]) + values[3] * ui[0];
+      vi[0] = (i0 - g1) / (g2 - g1);
+      if(std::isnan(vi[0]) || std::isinf(vi[0]))
+        vi[0] = FT(-1);
 
-      const FT e1 = f0+f3-f1-f2;  // eta coefficient of hyperbola
-      const FT v1 = (f0-f1)/e1;  // asymptotes
-      const FT u1 = (f0-f2)/e1;
-      const FT a1 = (f0*f3 - f1*f2)/e1;  // alpha coefficient of hyperbola
-      const FT e2 = h0+h3-h1-h2;
-      const FT v2 = (h0-h1)/e2;
-      const FT u2 = (h0-h2)/e2;
-      const FT a2 = (h0*h3 - h1*h2)/e2;
-      
-      // solve quadratic equation for opposing hyperbola intersections
-      const FT a = (v2-v1)*e1*e2;
-      const FT b = -a*(u1+u2) + (i0-a2)*e1 - (i0-a1)*e2;
-      const FT c = a*u1*u2 - (i0-a2)*e1*u1 + (i0-a1)*e2*u2;
-      FT d = b * b - FT(4) * a * c;
-      
-      if(d >= 0)
-      {
-        d = sqrt(d);
+      g1 = values[0] * (FT(1) - ui[1]) + values[1] * ui[1];
+      g2 = values[2] * (FT(1) - ui[1]) + values[3] * ui[1];
+      vi[1] = (i0 - g1) / (g2 - g1);
+      if(std::isnan(vi[1]) || std::isinf(vi[1]))
+        vi[1] = FT(-1);
 
-        // compute u-coord of solutions
-        vi[0] = (-b - d) / (FT(2) * a);
-        vi[1] = (-b + d) / (FT(2) * a);
-      }
+      // compute w-coordinates of solutions
+      g1 = values[0] * (FT(1) - ui[0]) + values[1] * ui[0];
+      g2 = values[4] * (FT(1) - ui[0]) + values[5] * ui[0];
+      wi[0] = (i0 - g1) / (g2 - g1);
+      if (std::isnan(wi[0]) || std::isinf(wi[0])) wi[0] = FT(-1);
+      g1 = values[0] * (FT(1) - ui[1]) + values[1] * ui[1];
+      g2 = values[4] * (FT(1) - ui[1]) + values[5] * ui[1];
+      wi[1] = (i0 - g1) / (g2 - g1);
+      if(std::isnan(wi[1]) || std::isinf(wi[1]))
+        wi[1] = FT(-1);
     }
 
     // numerical error
-    const FT small = 0.00000000000001;
+    const FT small = 1e-9;
     if (ui[0] < 0 && std::abs(ui[0]) < small)
       ui[0] = 0;
     if (ui[0] > 1 && std::abs(ui[0] - 1) < small)
@@ -837,120 +774,8 @@ private:
 
     if(FT(0) <= wi[1] && wi[1] <= FT(1))
       q_sol |= 32;
-
-      int k = 0;
-
-    {
-      FT ui[2]{};
-    FT vi[2]{};
-    FT wi[2]{};
-    unsigned char q_sol = 0;
-    const FT a = (values[0] - values[1]) * (-values[6] + values[7] + values[4] - values[5]) -
-                 (values[4] - values[5]) * (-values[2] + values[3] + values[0] - values[1]);
-    const FT b = (i0 - values[0]) * (-values[6] + values[7] + values[4] - values[5]) +
-                   (values[0] - values[1]) * (values[6] - values[4]) -
-                 (i0 - values[4]) * (-values[2] + values[3] + values[0] - values[1]) -
-                   (values[4] - values[5]) * (values[2] - values[0]);
-    const FT c = (i0 - values[0]) * (values[6] - values[4]) - (i0 - values[4]) * (values[2] - values[0]);
-
-    FT d = b * b - FT(4) * a * c;
-    if(d > 0)
-    {
-      d = sqrt(d);
-
-      // compute u-coord of solutions
-      ui[0] = (-b - d) / (FT(2) * a);
-      ui[1] = (-b + d) / (FT(2) * a);
-
-      // compute v-coord of solutions
-      FT g1 = values[0] * (FT(1) - ui[0]) + values[1] * ui[0];
-      FT g2 = values[2] * (FT(1) - ui[0]) + values[3] * ui[0];
-      vi[0] = (i0 - g1) / (g2 - g1);
-      if(std::isnan(vi[0]) || std::isinf(vi[0]))
-        vi[0] = FT(-1);
-
-      g1 = values[0] * (FT(1) - ui[1]) + values[1] * ui[1];
-      g2 = values[2] * (FT(1) - ui[1]) + values[3] * ui[1];
-      vi[1] = (i0 - g1) / (g2 - g1);
-      if(std::isnan(vi[1]) || std::isinf(vi[1]))
-        vi[1] = FT(-1);
-
-      // compute w-coordinates of solutions
-      g1 = values[0] * (FT(1) - ui[0]) + values[1] * ui[0];
-      g2 = values[4] * (FT(1) - ui[0]) + values[5] * ui[0];
-      wi[0] = (i0 - g1) / (g2 - g1);
-      if (std::isnan(wi[0]) || std::isinf(wi[0])) wi[0] = FT(-1);
-      g1 = values[0] * (FT(1) - ui[1]) + values[1] * ui[1];
-      g2 = values[4] * (FT(1) - ui[1]) + values[5] * ui[1];
-      wi[1] = (i0 - g1) / (g2 - g1);
-      if(std::isnan(wi[1]) || std::isinf(wi[1]))
-        wi[1] = FT(-1);
-
-      // correct values for roots of quadratic equations
-      // in case the asymptotic decider has failed
-      if(f_flag[0]) {  // face 1, w = 0;
-        if(wi[0] < wi[1])
-          wi[0] = FT(0);
-        else
-          wi[1] = FT(0);
-      }
-
-      if(f_flag[1]) {  // face 2, w = 1
-        if(wi[0] > wi[1])
-          wi[1] = FT(1);
-        else
-          wi[1] = FT(1);
-      }
-
-      if(f_flag[2]) {  // face 3, v = 0
-        if(vi[0] < vi[1])
-          vi[0] = FT(0);
-        else
-          vi[1] = FT(0);
-      }
-
-      if(f_flag[3]) {  // face 4, v = 1
-        if(vi[0] > vi[1])
-          vi[0] = FT(1);
-        else
-          vi[1] = FT(1);
-      }
-
-      if(f_flag[4]) {  // face 5, u = 0
-        if(ui[0] < ui[1])
-          ui[0] = FT(0);
-        else
-          ui[1] = FT(0);
-      }
-
-      if(f_flag[5]) {  // face 6, u = 1
-        if(ui[0] > ui[1])
-          ui[0] = FT(1);
-        else
-          ui[1] = FT(1);
-      }
-
-      // check solution intervals
-      if(FT(0) < ui[0] && ui[0] < FT(1))
-        q_sol |= 1;
-
-      if(0 < ui[1] && ui[1] < 1)
-        q_sol |= 2;
-
-      if(0 < vi[0] && vi[0] < 1)
-        q_sol |= 4;
-
-      if(0 < vi[1] && vi[1] < 1)
-        q_sol |= 8;
-
-      if(0 < wi[0] && wi[0] < 1)
-        q_sol |= 16;
-
-      if(0 < wi[1] && wi[1] < 1)
-        q_sol |= 32;
-    }
+      
     int k = 0;
-    }
 
     // counts the number of set bits
     auto numberOfSetBits = [](const unsigned char n)
@@ -993,11 +818,27 @@ private:
     hvt.push_back(point(ui[1], vi[1], wi[0]));
     hvt.push_back(point(ui[0], vi[1], wi[0]));
 
-    std::vector<Point_3> vtSaddle = findVertexAtFace(values, hvt, contour_face_index);
+    std::vector<bool> is_saddle_singular = findVertexAtFace(values, hvt, contour_face_index);
     std::vector<Point_index> saddle_idx;
-    for(const Point_3& p : vtSaddle)
+    for(const Point_3& p : hvt)
     {
-      saddle_idx.push_back(add_point_unchecked(p));
+      const FT u = p[0];
+      const FT v = p[1];
+      const FT w = p[2];
+      const FT px = (FT(1) - w) * ((FT(1) - v) * (x_coord(corners[0]) + u * (x_coord(corners[1]) - x_coord(corners[0]))) +
+                                              v * (x_coord(corners[2]) + u * (x_coord(corners[3]) - x_coord(corners[2])))) +
+                              w * ((FT(1) - v) * (x_coord(corners[4]) + u * (x_coord(corners[5]) - x_coord(corners[4]))) +
+                                              v * (x_coord(corners[6]) + u * (x_coord(corners[7]) - x_coord(corners[6]))));
+      const FT py = (FT(1) - w) * ((FT(1) - v) * (y_coord(corners[0]) + u * (y_coord(corners[1]) - y_coord(corners[0]))) +
+                                              v * (y_coord(corners[2]) + u * (y_coord(corners[3]) - y_coord(corners[2])))) +
+                              w * ((FT(1) - v) * (y_coord(corners[4]) + u * (y_coord(corners[5]) - y_coord(corners[4]))) +
+                                              v * (y_coord(corners[6]) + u * (y_coord(corners[7]) - y_coord(corners[6]))));
+      const FT pz = (FT(1) - w) * ((FT(1) - v) * (z_coord(corners[0]) + u * (z_coord(corners[1]) - z_coord(corners[0]))) +
+                                              v * (z_coord(corners[2]) + u * (z_coord(corners[3]) - z_coord(corners[2])))) +
+                              w * ((FT(1) - v) * (z_coord(corners[4]) + u * (z_coord(corners[5]) - z_coord(corners[4]))) +
+                                              v * (z_coord(corners[6]) + u * (z_coord(corners[7]) - z_coord(corners[6]))));
+
+      saddle_idx.push_back(add_point_unchecked(point(px, py, pz)));
     }
 
     // triangulate contours
@@ -1064,30 +905,6 @@ private:
         }
       }
 
-      // compute vertices of inner hexagon, save new vertices in list and compute and keep
-      // global vertices index to build triangle connectivity later on.
-      Point_index tg_idx[6];
-      for(int i=0; i<6; ++i)
-      {
-        const FT u = hvt[i][0];
-        const FT v = hvt[i][1];
-        const FT w = hvt[i][2];
-        const FT px = (FT(1) - w) * ((FT(1) - v) * (x_coord(corners[0]) + u * (x_coord(corners[1]) - x_coord(corners[0]))) +
-                                               v * (x_coord(corners[2]) + u * (x_coord(corners[3]) - x_coord(corners[2])))) +
-                                w * ((FT(1) - v) * (x_coord(corners[4]) + u * (x_coord(corners[5]) - x_coord(corners[4]))) +
-                                               v * (x_coord(corners[6]) + u * (x_coord(corners[7]) - x_coord(corners[6]))));
-        const FT py = (FT(1) - w) * ((FT(1) - v) * (y_coord(corners[0]) + u * (y_coord(corners[1]) - y_coord(corners[0]))) +
-                                               v * (y_coord(corners[2]) + u * (y_coord(corners[3]) - y_coord(corners[2])))) +
-                                w * ((FT(1) - v) * (y_coord(corners[4]) + u * (y_coord(corners[5]) - y_coord(corners[4]))) +
-                                               v * (y_coord(corners[6]) + u * (y_coord(corners[7]) - y_coord(corners[6]))));
-        const FT pz = (FT(1) - w) * ((FT(1) - v) * (z_coord(corners[0]) + u * (z_coord(corners[1]) - z_coord(corners[0]))) +
-                                               v * (z_coord(corners[2]) + u * (z_coord(corners[3]) - z_coord(corners[2])))) +
-                                w * ((FT(1) - v) * (z_coord(corners[4]) + u * (z_coord(corners[5]) - z_coord(corners[4]))) +
-                                               v * (z_coord(corners[6]) + u * (z_coord(corners[7]) - z_coord(corners[6]))));
-
-        tg_idx[i] = add_point_unchecked(point(px, py, pz));
-      }
-
       // triangulate contours with inner hexagon
       std::array<int, 12> tcon_;
       for(int i=0; i<(int)cnt_; ++i)
@@ -1120,36 +937,36 @@ private:
             tcon_[ci] = (unsigned char)(index);
           }
 
-          triangulateVts(c_, i, cnt_sz, tcon_, saddle_idx, vertices, s_flag, ecoord, hvt);
+          triangulateVts(c_, i, cnt_sz, tcon_, saddle_idx, vertices, s_flag, ecoord, hvt, is_saddle_singular);
+
+          if(cnt_sz == 12)
+          {
+            // there is a single contour
+            // triangulate and close inner hexagon
+            // triangle must have the correct orientation
+            // use asymptotic_decider() to see if positive vertices
+            // are separated, in this case orientation must be changed
+            const bool s_ = (asymptotic_decider(values[0], values[1], values[2], values[3]) <= i0);
+            const bool of_ = (wi[1] < wi[0]) ? s_ : !s_;
+
+            if(!of_)
+            {
+              add_triangle(saddle_idx[0], saddle_idx[2], saddle_idx[1]);
+              add_triangle(saddle_idx[2], saddle_idx[4], saddle_idx[3]);
+              add_triangle(saddle_idx[0], saddle_idx[5], saddle_idx[4]);
+              add_triangle(saddle_idx[0], saddle_idx[4], saddle_idx[2]);
+            }
+            else
+            {
+              add_triangle(saddle_idx[0], saddle_idx[1], saddle_idx[2]);
+              add_triangle(saddle_idx[2], saddle_idx[3], saddle_idx[4]);
+              add_triangle(saddle_idx[0], saddle_idx[4], saddle_idx[5]);
+              add_triangle(saddle_idx[0], saddle_idx[2], saddle_idx[4]);
+            }
+          }
           
         } // if(_not_tunnel)
       } // for loop over contours
-
-      if(cnt_ == 1)
-      {
-        // there is a single contour
-        // triangulate and close inner hexagon
-        // triangle must have the correct orientation
-        // use asymptotic_decider() to see if positive vertices
-        // are separated, in this case orientation must be changed
-        const bool s_ = (asymptotic_decider(values[0], values[1], values[2], values[3]) <= i0);
-        const bool of_ = (wi[1] < wi[0]) ? s_ : !s_;
-
-        if(!of_)
-        {
-          add_triangle(tg_idx[0], tg_idx[2], tg_idx[1]);
-          add_triangle(tg_idx[2], tg_idx[4], tg_idx[3]);
-          add_triangle(tg_idx[0], tg_idx[5], tg_idx[4]);
-          add_triangle(tg_idx[0], tg_idx[4], tg_idx[2]);
-        }
-        else
-        {
-          add_triangle(tg_idx[0], tg_idx[1], tg_idx[2]);
-          add_triangle(tg_idx[2], tg_idx[3], tg_idx[4]);
-          add_triangle(tg_idx[0], tg_idx[4], tg_idx[5]);
-          add_triangle(tg_idx[0], tg_idx[2], tg_idx[4]);
-        }
-      }
     }
     else
     {
@@ -1237,7 +1054,24 @@ private:
           if (fvt[i][0] > -1)
           {
             singular_s.push_back(fvt[i]);
-            singular_idx.push_back(add_point_unchecked(fvt[i]));
+            
+            const FT u = fvt[i][0];
+            const FT v = fvt[i][1];
+            const FT w = fvt[i][2];
+            const FT px = (FT(1) - w) * ((FT(1) - v) * (x_coord(corners[0]) + u * (x_coord(corners[1]) - x_coord(corners[0]))) +
+                                                  v * (x_coord(corners[2]) + u * (x_coord(corners[3]) - x_coord(corners[2])))) +
+                                    w * ((FT(1) - v) * (x_coord(corners[4]) + u * (x_coord(corners[5]) - x_coord(corners[4]))) +
+                                                  v * (x_coord(corners[6]) + u * (x_coord(corners[7]) - x_coord(corners[6]))));
+            const FT py = (FT(1) - w) * ((FT(1) - v) * (y_coord(corners[0]) + u * (y_coord(corners[1]) - y_coord(corners[0]))) +
+                                                  v * (y_coord(corners[2]) + u * (y_coord(corners[3]) - y_coord(corners[2])))) +
+                                    w * ((FT(1) - v) * (y_coord(corners[4]) + u * (y_coord(corners[5]) - y_coord(corners[4]))) +
+                                                  v * (y_coord(corners[6]) + u * (y_coord(corners[7]) - y_coord(corners[6]))));
+            const FT pz = (FT(1) - w) * ((FT(1) - v) * (z_coord(corners[0]) + u * (z_coord(corners[1]) - z_coord(corners[0]))) +
+                                                  v * (z_coord(corners[2]) + u * (z_coord(corners[3]) - z_coord(corners[2])))) +
+                                    w * ((FT(1) - v) * (z_coord(corners[4]) + u * (z_coord(corners[5]) - z_coord(corners[4]))) +
+                                                  v * (z_coord(corners[6]) + u * (z_coord(corners[7]) - z_coord(corners[6]))));
+                                                  
+            singular_idx.push_back(add_point_unchecked(point(px, py, pz)));
           }
         }
 
@@ -1254,7 +1088,7 @@ private:
             const Point_3& pt = points[get_c(i, j, c_)];
 
             int index = -1;  // index of closest singular saddle point
-            int min_distance = 3;  // smallest distance
+            int min_distance = 9;  // smallest distance
 
             for (int k = 0; k < singular_s.size(); k++)
             {
@@ -1266,10 +1100,10 @@ private:
               }
             }
 
-            gconne[j] = index;
+            gconne[get_c(i, j, c_)] = index;
           }
 
-          triangulateVts(c_, i, nr_c, gconne, singular_idx, vertices, s_flag, ecoord, singular_s);
+          triangulateVts(c_, i, nr_c, gconne, singular_idx, vertices, s_flag, ecoord, singular_s, is_saddle_singular);
         }
 
 
@@ -1464,12 +1298,12 @@ private:
     return std::make_pair(uw, vw);
   }
 
-  // returns list of signular saddle points
-  std::vector<Point_3> findVertexAtFace(const std::array<FT, 8>& values, const std::vector<Point_3>& hvt, const std::array<std::array<int, 12>, 4>& contour_face_index)
+  // returns list of singular saddle points
+  std::vector<bool> findVertexAtFace(const std::array<FT, 8>& values, std::vector<Point_3>& hvt, const std::array<std::array<int, 12>, 4>& contour_face_index)
   {
-    std::array<Point_3, 6> vtSaddle;
+    std::array<bool, 6> vtSaddle;
     for (int i = 0; i < 6; i++)
-      vtSaddle[i] = Point_3(0, 0, 0);
+      vtSaddle[i] = false;
 
     // process faces
     const FT ep = 0.000000001;  // small epsilon
@@ -1486,12 +1320,12 @@ private:
             // check if this point is at the center of the asymptotes
             if (std::abs(u0 - hvt[i][0]) < ep && std::abs(v0 - hvt[i][1]) < ep)
             {
-              vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
+              vtSaddle[nr_v] = true;
               nr_v = nr_v + 1;
             }
             else
             {
-              vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2] + sh);
+              hvt[i] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2] + sh);
               nr_v = nr_v + 1;
             }
         }
@@ -1501,12 +1335,12 @@ private:
             const auto [u0, v0] = getAsymptotes(1, values);
             if (std::abs(u0 - hvt[i][0]) < ep && std::abs(v0 - hvt[i][1]) < ep)
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
+                vtSaddle[nr_v] = true;
                 nr_v = nr_v + 1;
             }
             else
             { 
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2] - sh);
+                hvt[i] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2] - sh);
                 nr_v = nr_v + 1;
             }
         }
@@ -1517,12 +1351,12 @@ private:
             // check if this point is at the center of the asymptotes
             if (std::abs(u0 - hvt[i][0]) < ep && std::abs(w0 - hvt[i][2]) < ep)
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
+                vtSaddle[nr_v] = true;
                 nr_v = nr_v + 1;
             }
             else
             { 
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1] + sh, hvt[i][2]);
+                hvt[i] = Point_3(hvt[i][0], hvt[i][1] + sh, hvt[i][2]);
                 nr_v = nr_v + 1;
             }
         }
@@ -1533,12 +1367,12 @@ private:
             // check if this point is at the center of the asymptotes
             if (std::abs(u0 - hvt[i][0]) < ep && std::abs(w0 - hvt[i][2]) < ep)
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
+                vtSaddle[nr_v] = true;
                 nr_v = nr_v + 1;
             }
             else
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1] - sh, hvt[i][2]);
+                hvt[i] = Point_3(hvt[i][0], hvt[i][1] - sh, hvt[i][2]);
                 nr_v = nr_v + 1;
             }
         }
@@ -1547,40 +1381,39 @@ private:
             // face 5, u = 0
             const auto [v0, w0] = getAsymptotes(4, values);
             // check if this point is at the center of the asymptotes
-            if (std::abs(v0 - hvt[i][0]) < ep && std::abs(w0 - hvt[i][2]) < ep)
+            if (std::abs(v0 - hvt[i][1]) < ep && std::abs(w0 - hvt[i][2]) < ep)
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
+                vtSaddle[nr_v] = true;
                 nr_v = nr_v + 1;
             }
             else
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0] + sh, hvt[i][1], hvt[i][2]);
+                hvt[i] = Point_3(hvt[i][0] + sh, hvt[i][1], hvt[i][2]);
                 nr_v = nr_v + 1;
             }
         }
-        else if (std::abs(hvt[i][1] - 1) < ep)
+        else if (std::abs(hvt[i][0] - 1) < ep)
         {
             // face 6, u = 1
             const auto [v0, w0] = getAsymptotes(5, values);
             // check if this point is at the center of the asymptotes
-            if (std::abs(v0 - hvt[i][0]) < ep && std::abs(w0 - hvt[i][2]) < ep)
+            if (std::abs(v0 - hvt[i][1]) < ep && std::abs(w0 - hvt[i][2]) < ep)
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
+                vtSaddle[nr_v] = true;
                 nr_v = nr_v + 1;
             }
             else
             {
-                vtSaddle[nr_v] = Point_3(hvt[i][0] - sh, hvt[i][1], hvt[i][2]);
+                hvt[i] = Point_3(hvt[i][0] - sh, hvt[i][1], hvt[i][2]);
                 nr_v = nr_v + 1;
             }
         }
         else
         {
-            vtSaddle[nr_v] = Point_3(hvt[i][0], hvt[i][1], hvt[i][2]);
             nr_v = nr_v + 1;
         }
     }
-    std::vector<Point_3> n_vertices;
+    std::vector<bool> n_vertices;
     for (int i = 0; i < nr_v; i++) {
       n_vertices.push_back(vtSaddle[i]);
     }
@@ -1588,7 +1421,7 @@ private:
   }
 
   void triangulateVts(const unsigned long long c_, const int i, const int cnt_sz, const std::array<int, 12>& tcon_, const std::vector<Point_index>& tg_idx, const std::array<Point_index, 12>& vertices,
-      const std::array<std::array<bool, 12>, 4>& s_flag, const std::vector<FT>& ecoord, const std::vector<Point_3>& hvt) {
+      const std::array<std::array<bool, 12>, 4>& s_flag, const std::vector<FT>& ecoord, const std::vector<Point_3>& hvt, const std::vector<bool>& is_saddle_singular) {
 
     // correspondence between vertices found
     // create triangles
@@ -1670,8 +1503,13 @@ private:
           {
             if (tg_idx.size() == 6)
             {
-              add_triangle(vertices[tid1], tg_idx[cid2], tg_idx[cid1]);
-              add_triangle(vertices[tid2], tg_idx[cid2], tg_idx[cid1]);
+              if (is_saddle_singular[cid2]) {
+                add_triangle(vertices[tid1], tg_idx[cid2], tg_idx[cid1]);
+                add_triangle(vertices[tid2], tg_idx[cid1], tg_idx[cid2]);
+              } else {
+                add_triangle(vertices[tid1], tg_idx[cid2], tg_idx[cid1]);
+                add_triangle(vertices[tid2], tg_idx[cid2], tg_idx[cid1]);
+              }
             }
             else
             {
