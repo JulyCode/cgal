@@ -10,7 +10,7 @@ kernel = "KERNEL_CARTESIAN_DOUBLE"
 # SCENARIO_IMPLICIT_SPHERE
 # SCENARIO_IMPLICIT_IWP
 # SCENARIO_SKULL_IMAGE
-scenario = "SCENARIO_SKULL_IMAGE"
+scenario = "SCENARIO_IMPLICIT_IWP"
 
 # TAG_SEQUENTIAL
 # TAG_PARALLEL
@@ -18,7 +18,7 @@ tag = "TAG_PARALLEL"
 
 # ALGO_MARCHING_CUBES
 # ALGO_DUAL_CONTOURING
-algorithm = "ALGO_DUAL_CONTOURING"
+algorithm = "ALGO_MARCHING_CUBES"
 threads = 1
 exponent = 1.2
 min_cells = 100000
@@ -31,6 +31,7 @@ data = []
 c = min_cells
 while c < max_cells:
 	n = int(c ** (1.0 / 3.0))
+	print(f"{n=}")
 
 	res = execute(n, threads, 5)
 	data.append([scenario, kernel, algorithm, tag, threads, int(c), res["time"], res["polygons"], res["points"]])

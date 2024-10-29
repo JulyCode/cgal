@@ -220,7 +220,7 @@ private:
 };
 
 template <class GeomTraits>
-struct Skull_image
+struct INR_image
 {
   using FT = typename GeomTraits::FT;
   using Grid = CGAL::Isosurfacing::Cartesian_grid_3<GeomTraits>;
@@ -228,36 +228,39 @@ struct Skull_image
   using Gradients = CGAL::Isosurfacing::Finite_difference_gradient_3<GeomTraits>;
   using Domain = CGAL::Isosurfacing::internal::Isosurfacing_domain_3<Grid, Values, Gradients>;
 
-  Skull_image(const std::size_t N)
+  INR_image(const std::string& path, const FT iso_value)
     : grid { },
-      values { grid }
+      values { grid },
+      gradients { values, 0.001 },
+      iso_value { iso_value }
   {
-    const std::string fname = CGAL::data_file_path("images/skull_2.9.inr");
     CGAL::Image_3 image;
-    if(!image.read(fname))
-      std::cerr << "Error: Cannot read file " << fname << std::endl;
+    if(!image.read(path))
+      std::cerr << "Error: Cannot read file " << path << std::endl;
 
-    Grid grid;
-    Values values { grid };
+    // Grid grid;
+    // Values values { grid };
     if(!CGAL::Isosurfacing::IO::convert_image_to_grid(image, grid, values))
       std::cerr << "Error: Cannot convert image to Cartesian grid" << std::endl;
+
+    const FT step = CGAL::approximate_sqrt(grid.spacing().squared_length()) * 0.01;
   }
 
   Domain domain() const
   {
-    const FT step = CGAL::approximate_sqrt(grid.spacing().squared_length()) * 0.01;
-    Gradients gradients { values, step };
     return { grid, values, gradients };
   }
 
   typename GeomTraits::FT iso() const
   {
-    return 2.9;
+    return iso_value;
   }
 
 private:
   Grid grid;
   Values values;
+  Gradients gradients;
+  FT iso_value;
 };
 
 int main(int argc, char* argv[])
@@ -305,7 +308,10 @@ int main(int argc, char* argv[])
   auto scenario = Implicit_iwp<Kernel>(N);
 #elif defined SCENARIO_SKULL_IMAGE
   std::cout << "SCENARIO_SKULL_IMAGE" << std::endl;
-  auto scenario = Skull_image<Kernel>(N);
+  auto scenario = INR_image<Kernel>(CGAL::data_file_path("images/skull_2.9.inr"), 2.9);
+#elif defined SCENARIO_FULL_HEAD_IMAGE
+  std::cout << "SCENARIO_FULL_HEAD_IMAGE" << std::endl;
+  auto scenario = INR_image<Kernel>("../examples/Isosurfacing_3/FullHead.inr", 1120);
 #else
   std::cout << "no scenario selected!" << std::endl;
   auto scenario = Implicit_sphere<Kernel>(N);
