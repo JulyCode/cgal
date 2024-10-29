@@ -18,6 +18,7 @@
 #include <CGAL/Isosurfacing_3/internal/partition_traits.h>
 #include <CGAL/Isosurfacing_3/interpolation_schemes_3.h>
 #include <CGAL/Isosurfacing_3/Finite_difference_gradient_3.h>
+#include <CGAL/Isosurfacing_3/Interpolated_discrete_values_3.h>
 
 #include <vector>
 
@@ -75,6 +76,67 @@ public:
       for(std::size_t j=0; j<m_grid.ydim(); ++j)
         for(std::size_t k=0; k<m_grid.zdim(); ++k)
           m_gradients[m_grid.linear_index(i, j, k)] = g(m_grid.point(i,j,k));
+  }
+
+  template <typename InterpolationScheme_>
+  void compute_discrete_gradients_from_discrete_values(const Interpolated_discrete_values_3<Grid, InterpolationScheme_>& values)
+  {
+    // TODO: assert
+
+    typename Geom_traits::Compute_x_3 x_coord = m_grid.geom_traits().compute_x_3_object();
+    typename Geom_traits::Compute_y_3 y_coord = m_grid.geom_traits().compute_y_3_object();
+    typename Geom_traits::Compute_z_3 z_coord = m_grid.geom_traits().compute_z_3_object();
+    typename Geom_traits::Construct_vector_3 vector = m_grid.geom_traits().construct_vector_3_object();
+
+    for(std::size_t i=0; i<m_grid.xdim(); ++i)
+      for(std::size_t j=0; j<m_grid.ydim(); ++j)
+        for(std::size_t k=0; k<m_grid.zdim(); ++k) {
+
+          FT dfx, dfy, dfz;
+          FT di = 0, dj = 0, dk = 0;
+
+          if (i == m_grid.xdim() - 1) {
+            dfx = values(i,j,k);
+          } else {
+            dfx = values(i + 1,j,k);
+            di += m_grid.spacing()[0];
+          }
+          if (i == 0) {
+            dfx -= values(i,j,k);
+          } else {
+            dfx -= values(i - 1,j,k);
+            di += m_grid.spacing()[0];
+          }
+
+          if (j == m_grid.ydim() - 1) {
+            dfy = values(i,j,k);
+          } else {
+            dfy = values(i,j + 1,k);
+            dj += m_grid.spacing()[1];
+          }
+          if (j == 0) {
+            dfy -= values(i,j,k);
+          } else {
+            dfy -= values(i,j - 1,k);
+            dj += m_grid.spacing()[1];
+          }
+
+          if (k == m_grid.zdim() - 1) {
+            dfz = values(i,j,k);
+          } else {
+            dfz = values(i,j,k + 1);
+            dk += m_grid.spacing()[2];
+          }
+          if (k == 0) {
+            dfz -= values(i,j,k);
+          } else {
+            dfz -= values(i,j,k - 1);
+            dk += m_grid.spacing()[2];
+          }
+
+          const Vector_3 grad = vector(dfx / di, dfy / dj, dfz / dk);
+          m_gradients[m_grid.linear_index(i, j, k)] = grad / CGAL::approximate_sqrt(grad.squared_length());
+        }
   }
 
 public:

@@ -684,7 +684,7 @@ void test_random()
   FT iso = 0;
   // generate_random_easy(grid, values);
   // iso = generate_predefined_inner_ambiguity(grid, values, AmbiguousCase::MC_13_TUNNEL);
-  iso = generate_predefined_singular(grid, values, SingularCase::CASE_3);
+  iso = generate_predefined_singular(grid, values, SingularCase::CASE_2);
 
   {
     Grid grid_high_res { Point{-1., -1., -1.}, Point{1., 1., 1.}, std::array<std::size_t, 3>{151, 151, 151} };

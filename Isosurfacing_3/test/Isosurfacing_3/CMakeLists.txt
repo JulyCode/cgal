@@ -11,6 +11,7 @@ find_package(TBB QUIET)
 include(CGAL_TBB_support)
 
 create_single_source_cgal_program("test_marching_cubes.cpp")
+create_single_source_cgal_program("tmc.cpp")
 
 if(TARGET CGAL::Eigen3_support)
   create_single_source_cgal_program("test_isosurfacing_concepts.cpp")
